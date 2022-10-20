@@ -1,0 +1,13 @@
+#+TITLE: MRT Anomaly
+#+AUTHOR: Sudhanv Apte
+
+
+* MRTEye
+
+A Detection Model for detecting harmful objects on the MRT/TRA Tracks.
+
+** Architecture
+** Object
+- Monkeys
+- Trees
+- Poles
