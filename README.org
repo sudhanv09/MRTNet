@@ -1,8 +1,6 @@
-#+TITLE: MRT Anomaly
+#+TITLE: MRTEye
 #+AUTHOR: Sudhanv Apte
 
-
-* MRTEye
 
 A Detection Model for detecting harmful objects on the MRT/TRA Tracks.
 
