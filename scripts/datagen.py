@@ -5,21 +5,27 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image, ImageOps
-
+from tqdm import tqdm
 
 fixed_size = 100, 100
-num_image = 2000
-src_path = "../data/monkeys/"
-dest_path = "../data/train/"
-save_path = "../data/synth/"
+num_image = 200
+src_path = "../../Dataset/monkeys/"
+dest_path = "../../Dataset/train/"
+save_path = "../../Dataset/synth/"
+
+try:
+    Path(save_path).mkdir(parents=True, exist_ok=False)
+except FileExistsError:
+    print("Save dir not available")
+else:
+    print("Save dir created")
+
 
 dest_image_path = list(Path(dest_path).glob("*.jpg"))
 src_image_path = list(Path(src_path).glob("*.jpg"))
 
-log = open("pos.txt", "w+")
 
-
-for i in range(num_image):
+for i in tqdm(range(num_image)):
     dest_img_select = np.random.choice(dest_image_path)
     src_img_select = np.random.choice(src_image_path)
 
@@ -36,7 +42,4 @@ for i in range(num_image):
     x, y = (random.randrange(0, 500), random.randrange(0, 500))
     dest_copy.paste(src_img, (x, y))
     dest_copy.save(Path(save_path + f"a_{i}.jpg"))
-
-    log.write(f"{src_img_select}, {x}, {y}\n")
-
-log.close()
+print(f"Generated {num_image} at {Path(save_path)}")
