@@ -145,13 +145,20 @@ def visualize_model(model, num_images=6):
         model.train(mode=was_training)
 
 
-model_ft = models.resnet18(pretrained=True)
+model_ft = models.resnet18(weights=ResNet18_Weights.DEFAULT)
+#model_ft = models.convnext_tiny(weights=ConvNeXt_Tiny_Weights.DEFAULT)
+#model_ft = models.efficientnet_b4(weights=EfficientNet_B4_Weights.DEFAULT)
+#model_ft = models.vit_b_32(weights=ViT_B_32_Weights.DEFAULT)
+#model_ft = models.mobilenet_v3_small(weights=MobileNet_V3_Small_Weights.DEFAULT)
+#model_ft = models.shufflenet_v2_x2_0(weights=ShuffleNet_V2_X2_0_Weights.DEFAULT)
+#model_ft = models.swin_s(weights=Swin_S_Weights.DEFAULT)
+
 num_ftrs = model_ft.fc.in_features
 model_ft.fc = nn.Linear(num_ftrs, 2)
 model_ft = model_ft.to(device)
 
 criterion = nn.CrossEntropyLoss()
-optimizer_ft = optim.AdamW(model_ft.parameters(), lr=0.001, momentum=0.9)
+optimizer_ft = optim.AdamW(model_ft.parameters(), lr=0.001)
 exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=7, gamma=0.1)
 
 model_ft = train_model(

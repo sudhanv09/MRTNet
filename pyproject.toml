@@ -1,12 +1,12 @@
 [tool.poetry]
-name = "DataBuilderUCL"
+name = "UCL-MRT"
 version = "0.1.0"
-description = "Data Builder scripts for UCL"
+description = "Implementation of the MRTNet"
 authors = ["sudhanv <mystogun125@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "3.7"
+python = "3.8.15"
 torch = "^1.12.1"
 numpy = "1.21.6"
 Pillow = "^9.2.0"
