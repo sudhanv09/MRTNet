@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 from PIL import Image, ImageOps
 from tqdm import tqdm
 
-fixed_size = 100, 100
-num_image = 200
+fixed_size = 150, 150
+num_image = 2000
 src_path = "../../Dataset/monkeys/"
 dest_path = "../../Dataset/train/"
 save_path = "../../Dataset/synth/"

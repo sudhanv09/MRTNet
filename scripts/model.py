@@ -11,49 +11,53 @@ from torchvision import datasets, models, transforms
 import matplotlib.pyplot as plt
 
 import os
-import time
 import copy
 
+def model_ftrs(model):
+    # ResNet18
+    # Params: 11.7M
+    # GFLOPs: 1.814
+   if model == 'resnet':
+        model_ft = models.resnet18(weights='DEFAULT')
+        num_ftrs = model_ft.fc.in_features
+    # Convnext Tiny
+    # Params: 28.6M
+    # GFLOPs: 4.456
+   elif model == 'convnext':
+        model_ft = models.convnext_tiny(weights='DEFAULT')
+        num_ftrs = model_ft.classifier[2].in_features
+    # EfficientNet B4
+    # Params: 19.3M
+    # GFLOPs: 4.394
+   elif model == 'efficientnet':
+        model_ft = models.efficientnet_b4(weights='DEFAULT')
+        num_ftrs = model_ft.classifier[1].in_features
+    # MobileNet v3
+    # Params: 28.6M
+    # GFLOPs: 4.456
+   elif model == 'mobilenet':
+        model_ft = models.mobilenet_v8_small(weights='DEFAULT')
+        num_ftrs = model_ft.classifier[3].in_features
+    # ShuffleNet
+    # Params: 7.4M
+    # GFLOPs: 0.583
+   elif model == 'shufflenet':
+        model_ft = models.shufflenet_v2_x2_0(weights='DEFAULT')
+        num_ftrs = model_ft.fc.in_features
+    # Swin_T
+    # Params: 28.3M
+    # GFLOPs: 4.491
+   elif model == 'swin':
+        model_ft = models.swin_s(weights='DEFAULT')
+        num_ftrs = model_ft.head.in_features
+   else:
+        print("Available models:\n")
+        print("resnet, convnext, efficientnet, mobilenet, shufflenet, swin\n")
+        print("please pass correct model")
 
-# Load Data
-data_transforms = {
-    "train": transforms.Compose(
-        [
-            transforms.RandomResizedCrop(224),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        ]
-    ),
-    "val": transforms.Compose(
-        [
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        ]
-    ),
-}
-data_dir = "../data/"
-image_datasets = {
-    x: datasets.ImageFolder(os.path.join(data_dir, x), data_transforms[x])
-    for x in ["train", "val"]
-}
-dataloaders = {
-    x: torch.utils.data.DataLoader(
-        image_datasets[x], batch_size=4, shuffle=True, num_workers=4
-    )
-    for x in ["train", "val"]
-}
-dataset_sizes = {x: len(image_datasets[x]) for x in ["train", "val"]}
-class_names = image_datasets["train"].classes
-
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
+    return model_ft, num_ftrs
 
 def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
-    since = time.time()
-
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
 
@@ -109,8 +113,6 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
 
         print()
 
-    time_elapsed = time.time() - since
-    print(f"Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s")
     print(f"Best val Acc: {best_acc:4f}")
 
     # load best model weights
@@ -137,31 +139,59 @@ def visualize_model(model, num_images=6):
                 ax = plt.subplot(num_images // 2, 2, images_so_far)
                 ax.axis("off")
                 ax.set_title(f"predicted: {class_names[preds[j]]}")
-                imshow(inputs.cpu().data[j])
+                plt.imsave(f'res_{i}.png', inputs.cpu().data[j])
 
                 if images_so_far == num_images:
                     model.train(mode=was_training)
                     return
         model.train(mode=was_training)
 
+if __name__ == '__main__':
+# Load Data
+    data_transforms = {
+        "train": transforms.Compose(
+            [
+                transforms.RandomResizedCrop(224),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            ]
+        ),
+        "val": transforms.Compose(
+            [
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            ]
+        ),
+    }
+    data_dir = "../data/"
+    image_datasets = {
+        x: datasets.ImageFolder(os.path.join(data_dir, x), data_transforms[x])
+        for x in ["train", "val"]
+    }
+    dataloaders = {
+        x: torch.utils.data.DataLoader(
+            image_datasets[x], batch_size=32, shuffle=True, num_workers=4
+        )
+        for x in ["train", "val"]
+    }
+    dataset_sizes = {x: len(image_datasets[x]) for x in ["train", "val"]}
+    class_names = image_datasets["train"].classes
 
-model_ft = models.resnet18(weights=ResNet18_Weights.DEFAULT)
-#model_ft = models.convnext_tiny(weights=ConvNeXt_Tiny_Weights.DEFAULT)
-#model_ft = models.efficientnet_b4(weights=EfficientNet_B4_Weights.DEFAULT)
-#model_ft = models.vit_b_32(weights=ViT_B_32_Weights.DEFAULT)
-#model_ft = models.mobilenet_v3_small(weights=MobileNet_V3_Small_Weights.DEFAULT)
-#model_ft = models.shufflenet_v2_x2_0(weights=ShuffleNet_V2_X2_0_Weights.DEFAULT)
-#model_ft = models.swin_s(weights=Swin_S_Weights.DEFAULT)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-num_ftrs = model_ft.fc.in_features
-model_ft.fc = nn.Linear(num_ftrs, 2)
-model_ft = model_ft.to(device)
+    model_ft, num_ftrs = model_ftrs("resnet")
+    model_ft.fc = nn.Linear(num_ftrs, 2)
+    model_ft = model_ft.to(device)
 
-criterion = nn.CrossEntropyLoss()
-optimizer_ft = optim.AdamW(model_ft.parameters(), lr=0.001)
-exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=7, gamma=0.1)
+    criterion = nn.CrossEntropyLoss()
+    optimizer_ft = optim.AdamW(model_ft.parameters(), lr=0.001)
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=7, gamma=0.1)
 
-model_ft = train_model(
-    model_ft, criterion, optimizer_ft, exp_lr_scheduler, num_epochs=50
-)
-visualize_model(model_ft)
+    model_ft = train_model(
+        model_ft, criterion, optimizer_ft, exp_lr_scheduler, num_epochs=50
+    )
+    model.save(model_ft)
+    visualize_model(model_ft)
