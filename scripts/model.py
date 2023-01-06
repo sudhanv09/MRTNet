@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -9,6 +7,8 @@ import numpy as np
 import torchvision
 from torchvision import datasets, models, transforms
 import matplotlib.pyplot as plt
+from PIL import Image
+from torch.utils.tensorboard import SummaryWriter
 
 import os
 import copy
@@ -17,42 +17,31 @@ def model_ftrs(model):
     # ResNet18
     # Params: 11.7M
     # GFLOPs: 1.814
-   if model == 'resnet':
+    if model == 'resnet':
         model_ft = models.resnet18(weights='DEFAULT')
         num_ftrs = model_ft.fc.in_features
-    # Convnext Tiny
-    # Params: 28.6M
-    # GFLOPs: 4.456
-   elif model == 'convnext':
-        model_ft = models.convnext_tiny(weights='DEFAULT')
-        num_ftrs = model_ft.classifier[2].in_features
     # EfficientNet B4
     # Params: 19.3M
     # GFLOPs: 4.394
-   elif model == 'efficientnet':
-        model_ft = models.efficientnet_b4(weights='DEFAULT')
+    elif model == 'efficientnet':
+        model_ft = models.efficientnet_b3(weights='DEFAULT')
         num_ftrs = model_ft.classifier[1].in_features
     # MobileNet v3
     # Params: 28.6M
     # GFLOPs: 4.456
-   elif model == 'mobilenet':
-        model_ft = models.mobilenet_v8_small(weights='DEFAULT')
+    elif model == 'mobilenet':
+        model_ft = models.mobilenet_v3_large(weights='DEFAULT')
         num_ftrs = model_ft.classifier[3].in_features
     # ShuffleNet
     # Params: 7.4M
     # GFLOPs: 0.583
-   elif model == 'shufflenet':
+    elif model == 'shufflenet':
         model_ft = models.shufflenet_v2_x2_0(weights='DEFAULT')
         num_ftrs = model_ft.fc.in_features
-    # Swin_T
-    # Params: 28.3M
-    # GFLOPs: 4.491
-   elif model == 'swin':
-        model_ft = models.swin_s(weights='DEFAULT')
-        num_ftrs = model_ft.head.in_features
-   else:
+
+    else:
         print("Available models:\n")
-        print("resnet, convnext, efficientnet, mobilenet, shufflenet, swin\n")
+        print("resnet, efficientnet, mobilenet, shufflenet\n")
         print("please pass correct model")
 
     return model_ft, num_ftrs
@@ -62,7 +51,7 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
     best_acc = 0.0
 
     for epoch in range(num_epochs):
-        print(f"Epoch {epoch}/{num_epochs - 1}")
+        print(f"Epoch {epoch+1}/{num_epochs}")
         print("-" * 10)
 
         # Each epoch has a training and validation phase
@@ -105,6 +94,8 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
             epoch_acc = running_corrects.double() / dataset_sizes[phase]
 
             print(f"{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}")
+            writer.add_scalar(f'{phase}_loss', epoch_loss, epoch)
+            writer.add_scalar(f'{phase}_acc', epoch_acc, epoch)
 
             # deep copy the model
             if phase == "val" and epoch_acc > best_acc:
@@ -127,10 +118,10 @@ def visualize_model(model, num_images=6):
     fig = plt.figure()
 
     with torch.no_grad():
-        for i, (inputs, labels) in enumerate(dataloaders["val"]):
+        for _, (inputs, labels) in enumerate(dataloaders["val"]):
             inputs = inputs.to(device)
             labels = labels.to(device)
-
+            
             outputs = model(inputs)
             _, preds = torch.max(outputs, 1)
 
@@ -139,16 +130,15 @@ def visualize_model(model, num_images=6):
                 ax = plt.subplot(num_images // 2, 2, images_so_far)
                 ax.axis("off")
                 ax.set_title(f"predicted: {class_names[preds[j]]}")
-                plt.imsave(f'res_{i}.png', inputs.cpu().data[j])
+                plt.imshow(np.transpose(inputs.detach().cpu().data[j], (1,2,0)))
 
                 if images_so_far == num_images:
                     model.train(mode=was_training)
                     return
         model.train(mode=was_training)
 
-if __name__ == '__main__':
-# Load Data
-    data_transforms = {
+
+data_transforms = {
         "train": transforms.Compose(
             [
                 transforms.RandomResizedCrop(224),
@@ -166,32 +156,35 @@ if __name__ == '__main__':
             ]
         ),
     }
-    data_dir = "../data/"
-    image_datasets = {
-        x: datasets.ImageFolder(os.path.join(data_dir, x), data_transforms[x])
-        for x in ["train", "val"]
-    }
-    dataloaders = {
-        x: torch.utils.data.DataLoader(
-            image_datasets[x], batch_size=32, shuffle=True, num_workers=4
-        )
-        for x in ["train", "val"]
-    }
-    dataset_sizes = {x: len(image_datasets[x]) for x in ["train", "val"]}
-    class_names = image_datasets["train"].classes
 
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+data_dir = '../data/'
+writer = SummaryWriter('mrt/shufflenet')
 
-    model_ft, num_ftrs = model_ftrs("resnet")
-    model_ft.fc = nn.Linear(num_ftrs, 2)
-    model_ft = model_ft.to(device)
+image_datasets = {
+      x: datasets.ImageFolder(os.path.join(data_dir, x), data_transforms[x])
+      for x in ["train", "val"]
+  }
+dataloaders = {
+  x: torch.utils.data.DataLoader(
+      image_datasets[x], batch_size=32, shuffle=True, num_workers=2
+  )
+  for x in ["train", "val"]
+}
+dataset_sizes = {x: len(image_datasets[x]) for x in ["train", "val"]}
+class_names = image_datasets["train"].classes
 
-    criterion = nn.CrossEntropyLoss()
-    optimizer_ft = optim.AdamW(model_ft.parameters(), lr=0.001)
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=7, gamma=0.1)
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    model_ft = train_model(
-        model_ft, criterion, optimizer_ft, exp_lr_scheduler, num_epochs=50
-    )
-    model.save(model_ft)
-    visualize_model(model_ft)
+model_ft, num_ftrs = model_ftrs("shufflenet")
+model_ft.fc = nn.Linear(num_ftrs, 2)
+model_ft = model_ft.to(device)
+
+criterion = nn.CrossEntropyLoss()
+optimizer_ft = optim.AdamW(model_ft.parameters(), lr=0.001)
+exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=7, gamma=0.1)
+
+model_ft = train_model(
+    model_ft, criterion, optimizer_ft, exp_lr_scheduler, num_epochs=40
+)
+
+torch.save(model_ft, f'{model_ft.__class__.__name__}.pt')
